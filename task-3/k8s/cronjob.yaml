@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: export-job
+  namespace: analytics-export
+  labels:
+    app: price-list-export
+spec:
+  schedule: "0 20 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      # Правильное место для ttlSecondsAfterFinished
+      ttlSecondsAfterFinished: 3600
+
+      template:
+        spec:
+          restartPolicy: OnFailure
+
+          containers:
+            - name: export-container
+              image: export-job:latest
+              imagePullPolicy: Never  # Использовать локальный образ из MiniKube
+
+              envFrom:
+                - configMapRef:
+                    name: export-config
+                - secretRef:
+                    name: export-secret
+
+              volumeMounts:
+                - name: output-volume
+                  mountPath: /output
+
+              resources:
+                requests:
+                  memory: "256Mi"
+                  cpu: "250m"
+                limits:
+                  memory: "512Mi"
+                  cpu: "500m"
+
+          volumes:
+            - name: output-volume
+              emptyDir: {}
