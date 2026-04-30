@@ -1,0 +1,72 @@
+@startuml c4-monitoring
+!include <C4/C4_Container>
+
+' === Visual Styling ===
+skinparam backgroundColor #FFFFFF
+skinparam shadowing true
+skinparam roundcorner 12
+skinparam linetype ortho
+skinparam nodesep 70
+skinparam ranksep 90
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 13
+
+' === Color Tags for Visual Grouping ===
+AddElementTag("monitoring", $bgColor="#E3F2FD", $borderColor="#1976D2", $fontColor="#0D47A1")
+AddElementTag("logging", $bgColor="#FFF3E0", $borderColor="#F57C00", $fontColor="#E65100")
+AddElementTag("storage", $bgColor="#E8F5E9", $borderColor="#388E3C", $fontColor="#1B5E20")
+AddElementTag("app", $bgColor="#F3E5F5", $borderColor="#7B1FA2", $fontColor="#4A148C")
+
+title C4 - Диаграмма контейнеров
+title Мониторинг, логирование и оповещение TradeWare
+
+Person(devops, "DevOps / SRE", "Мониторинг здоровья системы,\nанализ метрик и логов,\nреагирование на оповещения")
+
+System_Boundary(tradeware, "TradeWare Monitoring & ETL Platform") {
+
+    ' === Application Layer ===
+    Container(batch_app, "Spring Batch ETL App", "Spring Boot / Java 17 / Actuator / Micrometer", "ETL-пайплайн: обработка CSV, обогащение данными лояльности.\nМетрики: /actuator/prometheus | Логи: JSON stdout", $tags="app")
+
+    ContainerDb(postgres, "PostgreSQL", "PostgreSQL 15+", "products, loyalty_data,\nBATCH_* метаданные", $tags="storage")
+
+    ' === Monitoring Stack ===
+    System_Boundary(monitoring_boundary, "📊 Monitoring Stack") {
+        Container(prometheus, "Prometheus", "v3.4.0", "• Сбор метрик (pull, 5s)\n• Alerting rules\n• TSDB хранение", $tags="monitoring")
+        Container(grafana, "Grafana", "v12.0.1", "• Дашборды: CPU, JVM, Threads\n• Batch Job Duration, JDBC Pool\n• Alerting & Notifications", $tags="monitoring")
+    }
+
+    ' === Logging Stack ===
+    System_Boundary(logging_boundary, "📝 Logging Stack (ELK)") {
+        Container(filebeat, "Filebeat", "v7.17.28", "• Сбор логов из Docker stdout/stderr\n• Парсинг JSON-структуры", $tags="logging")
+        Container(logstash, "Logstash", "v7.17.28", "• Приём логов (Beats)\n• Фильтрация и обогащение\n• Отправка в Elasticsearch", $tags="logging")
+        Container(elasticsearch, "Elasticsearch", "v7.17.28", "• Хранение и индексация логов\n• Full-text search\n• Aggregations", $tags="logging")
+        Container(kibana, "Kibana", "v7.17.28", "• Поиск и визуализация логов\n• Discover, Dashboards\n• Централизованное логирование", $tags="logging")
+    }
+}
+
+' ═══════════════════════════════════════════════════════
+' RELATIONSHIPS - Clear directional flow
+' ═══════════════════════════════════════════════════════
+
+' ── Metrics Pipeline (bottom-up) ──
+Rel_D(prometheus, batch_app, "Scrape метрик", "HTTP /actuator/prometheus\n5s интервал")
+Rel_D(grafana, prometheus, "Запрос метрик", "PromQL")
+Rel_U(devops, grafana, "Дашборды / Алерты", "HTTPS:3000")
+
+' ── Logs Pipeline (right-flow) ──
+Rel_R(filebeat, batch_app, "Сбор логов", "Docker API")
+Rel_D(filebeat, logstash, "Отправка логов", "Beats:5044")
+Rel_D(logstash, elasticsearch, "Индексация", "HTTP:9200")
+Rel_D(kibana, elasticsearch, "Поиск / Визуализация", "HTTP:9200")
+Rel_U(devops, kibana, "Анализ логов", "HTTPS:5601")
+
+' ── Data Layer ──
+Rel_D(batch_app, postgres, "JDBC", "read/write\nPostgreSQL:5432")
+
+' ═══════════════════════════════════════════════════════
+' LEGEND
+' ═══════════════════════════════════════════════════════
+LAYOUT_WITH_LEGEND()
+
+
+@enduml
