@@ -18,7 +18,7 @@
 **Создание образа**
 
    ```
-   docker build . -t batch-processin
+   docker build . -t batch-processing
    ```
 
 

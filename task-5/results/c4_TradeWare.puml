@@ -1,0 +1,44 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+
+title C4 Container Diagram - TradeWare Batch Processing & Observability
+
+Person(admin, "DevOps / Administrator", "Monitors system health & investigates issues")
+
+System_Boundary(app_boundary, "TradeWare Batch System") {
+    Container(batch_app, "Spring Batch Application", "Java 25 / Spring Boot 3.5", "Processes CSV, enriches loyalty data, upserts to DB via JDBC")
+    Container(postgres, "PostgreSQL 11", "Relational DB", "Stores product data & Spring Batch metadata tables")
+}
+
+System_Boundary(monitoring_boundary, "Monitoring & Logging Stack") {
+    Container(pushgw, "Prometheus PushGateway", "Go", "Accepts short-lived batch job metrics via HTTP")
+    Container(prometheus, "Prometheus", "Go", "Scrapes metrics, stores time-series, evaluates alert rules")
+    Container(grafana, "Grafana", "TypeScript/Go", "Visualizes metrics, manages dashboards & alert UI")
+
+    Container(filebeat, "Filebeat", "Go", "Collects container stdout logs, adds Docker metadata")
+    Container(logstash, "Logstash", "Java", "Parses JSON logs, normalizes fields, routes to ES")
+    Container(elasticsearch, "Elasticsearch 7.17", "Java", "Stores & indexes structured log documents")
+    Container(kibana, "Kibana", "JavaScript", "Searches, filters & visualizes centralized logs")
+}
+
+Rel(admin, grafana, "Views RED/USE metrics & dashboards")
+Rel(admin, kibana, "Searches structured logs")
+
+Rel(batch_app, postgres, "JDBC: UPSERT products & read job state")
+Rel(batch_app, pushgw, "HTTP POST: Push job metrics (Gauge/Counter)")
+Rel(batch_app, filebeat, "stdout: JSON structured logs")
+
+Rel(prometheus, pushgw, "Scrapes metrics (pull)")
+Rel(grafana, prometheus, "PromQL: Query metrics & alert status")
+
+Rel(filebeat, logstash, "Beats protocol: Forward logs")
+Rel(logstash, elasticsearch, "HTTP: Index parsed logs")
+Rel(kibana, elasticsearch, "Query: Search & analyze logs")
+
+UpdateRelStyle(batch_app, pushgw, $textColor="#FF6B6B", $lineColor="#FF6B6B")
+UpdateRelStyle(filebeat, logstash, $textColor="#4ECDC4", $lineColor="#4ECDC4")
+UpdateRelStyle(prometheus, pushgw, $textColor="#45B7D1", $lineColor="#45B7D1")
+
+@enduml
