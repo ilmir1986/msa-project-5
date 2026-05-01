@@ -1,0 +1,24 @@
+groups:
+  - name: spring_batch_alerts
+    rules:
+      # Alert 1: Job failed
+      - alert: BatchJobFailed
+        expr: increase(spring_batch_job_failure_total[1h]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: batch-processing
+        annotations:
+          summary: "Spring Batch job failed"
+          description: "Job {{ $labels.job }} failed {{ $value }} time(s) in the last hour"
+
+      # Alert 2: Job too slow
+      - alert: BatchJobSlow
+        expr: spring_batch_job_duration_seconds > 300
+        for: 2m
+        labels:
+          severity: warning
+          service: batch-processing
+        annotations:
+          summary: "Spring Batch job is slow"
+          description: "Job {{ $labels.job }} duration {{ $value }}s exceeds threshold (300s)"

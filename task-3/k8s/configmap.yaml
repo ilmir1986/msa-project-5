@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: export-config
+  namespace: analytics-export
+data:
+  DB_HOST: "postgres-service"
+  DB_PORT: "5432"
+  DB_NAME: "analytics_db"
+  TABLE_NAME: "shipments"
+  EXPORT_PATH: "/output"
+  EXPORT_FILENAME: "shipments_export.csv"
+  CHUNK_SIZE: "10000"
+  LOG_LEVEL: "INFO"

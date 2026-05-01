@@ -21,9 +21,26 @@ public class ProductItemProcessor implements ItemProcessor<Product, Product> {
 
     @Override
 	public Product process(final Product product) {
-      //todo
+		final Long productId = product.productId();
+		final Long productSku = product.productSku();
+		final String productName = product.productName();
+		final Long productAmount = product.productAmount();
+		final String productData = product.productData();
 
-		return //todo
+		AtomicReference<Product> transformedProduct = new AtomicReference<>(new Product(productId, productSku, productName, productAmount, productData));
+
+		String sql = "SELECT * FROM loyality_data WHERE productSku=" + productSku ;
+		jdbcTemplate.query(sql, new DataClassRowMapper<>(Loyality.class))
+				.stream().findAny().map(Loyality::loyalityData).map(loyalityData -> {
+                    return new Product(productId, productSku, productName, productAmount, loyalityData);
+				}).map( p -> {
+					transformedProduct.set(p);
+                    return null;
+                });
+
+		log.info("Transforming ({}) into ({})", product, transformedProduct.get());
+
+		return transformedProduct.get();
 	}
 
 }

@@ -1,0 +1,7 @@
+# app/.dockerignore
+__pycache__/
+*.pyc
+.env
+.git
+*.md
+output/
